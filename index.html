@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>League Phase Simulator</title>
+<meta name="description" content="Monte Carlo simulator for the 36-team Champions League league phase. Adjust pot strength, home advantage, draw rate and randomness, and see where the 8th, 16th and 24th place cut-offs land.">
+<style>
+:root{
+  --bg:#f6f7f9; --card:#ffffff; --ink:#15181d; --muted:#5d6672; --line:#e1e5ea;
+  --accent:#1f5fbf; --accent-soft:#e6eefb;
+  --c8:#1f5fbf; --c16:#d9822b; --c24:#6f7782;
+  --win:#2e8b57; --draw:#9aa3ad; --loss:#c4473d;
+  --zone-top:#e3f1e8; --zone-play:#fff6e0; --zone-out:#f8e6e4;
+  --shadow:0 1px 2px rgba(20,30,50,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1317; --card:#171c22; --ink:#e8ecf1; --muted:#98a3b0; --line:#28303a;
+    --accent:#5b9bff; --accent-soft:#1b2a40;
+    --c8:#5b9bff; --c16:#f0a04b; --c24:#9aa5b1;
+    --win:#4cb97d; --draw:#78828d; --loss:#e0685d;
+    --zone-top:#18301f; --zone-play:#33290f; --zone-out:#331a18;
+    --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1317; --card:#171c22; --ink:#e8ecf1; --muted:#98a3b0; --line:#28303a;
+  --accent:#5b9bff; --accent-soft:#1b2a40;
+  --c8:#5b9bff; --c16:#f0a04b; --c24:#9aa5b1;
+  --win:#4cb97d; --draw:#78828d; --loss:#e0685d;
+  --zone-top:#18301f; --zone-play:#33290f; --zone-out:#331a18;
+  --shadow:none;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:24px 16px 64px}
+header h1{font-size:26px;line-height:1.2;margin:0 0 6px;letter-spacing:-.01em}
+header p{margin:0;color:var(--muted);max-width:760px}
+.layout{display:grid;grid-template-columns:340px minmax(0,1fr);gap:20px;margin-top:22px;align-items:start}
+.layout>*{min-width:0}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:var(--shadow)}
+.card+.card{margin-top:16px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 12px;font-weight:600}
+h3{font-size:15px;margin:0 0 4px}
+.controls{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+@media (max-width:900px){.controls{position:static;max-height:none}}
+.group{margin:0 0 18px}
+.group:last-child{margin-bottom:0}
+.group>h2{margin-bottom:8px}
+.row{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:baseline;margin:10px 0}
+.row label{font-size:14px}
+.row output{font-variant-numeric:tabular-nums;font-weight:600;font-size:14px}
+.row input[type=range]{grid-column:1/-1;width:100%;margin:4px 0 0;accent-color:var(--accent);height:24px;touch-action:pan-y}
+.row .hint{grid-column:1/-1;color:var(--muted);font-size:12.5px;margin-top:-2px}
+details.fold{border-top:1px solid var(--line);padding:2px 0}
+details.fold:last-child{border-bottom:1px solid var(--line)}
+details.fold summary{cursor:pointer;padding:8px 0;list-style:none;font-size:14px;font-weight:600}
+details.fold summary::-webkit-details-marker{display:none}
+details.fold summary .t::before{content:"\25B8";display:inline-block;width:14px;color:var(--muted);transition:transform .12s}
+details.fold[open] summary .t::before{transform:rotate(90deg)}
+details.fold summary .sum{display:block;font-weight:400;font-size:12.5px;color:var(--muted);margin:1px 0 0 14px;font-variant-numeric:tabular-nums}
+details.fold[open] summary .sum{display:none}
+details.fold .badge{font-size:11px;font-weight:600;color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:1px 8px;margin-left:8px}
+details.fold .body{padding:0 0 8px 14px}
+.group>details.fold:first-of-type{margin-top:4px}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+button,select,input[type=number]{font:inherit}
+button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer;min-height:36px}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input[type=number]{width:96px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 8px;min-height:36px}
+.status{font-size:13px;color:var(--muted);min-height:20px}
+.bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:6px}
+.bar>i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media (max-width:560px){.kpis{grid-template-columns:1fr}}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:12px}
+.kpi .t{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.kpi .v{font-size:28px;font-weight:650;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:12.5px;color:var(--muted)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--line);font-size:13.5px;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600;font-size:12.5px}
+.scroll{overflow-x:auto}
+#oneTable th:nth-child(2),#oneTable td:nth-child(2),#oneTable th:last-child,#oneTable td:last-child{text-align:left}
+.chart svg{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-size:11px;font-family:inherit}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin:0 0 6px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.mini{font-size:12.5px;color:var(--muted);margin:8px 0 0}
+.inline-bar{display:inline-block;height:8px;border-radius:4px;background:var(--accent);vertical-align:middle;margin-right:6px;opacity:.85}
+.matrix td{text-align:center;padding:5px 4px;font-size:12px}
+.matrix th{text-align:center;padding:5px 4px}
+.chips{display:flex;gap:3px}
+.chip{width:22px;height:22px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff}
+.chip.W{background:var(--win)} .chip.T{background:var(--draw)} .chip.L{background:var(--loss)}
+tr.z-top td{background:var(--zone-top)} tr.z-play td{background:var(--zone-play)} tr.z-out td{background:var(--zone-out)}
+.note{color:var(--muted);font-size:13px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:760px){.two{grid-template-columns:1fr}}
+footer{margin-top:28px;color:var(--muted);font-size:13px}
+a{color:var(--accent)}
+.themebtn{float:right}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <button class="themebtn" id="themeBtn" type="button" aria-label="Toggle light or dark theme">Theme</button>
+  <h1>League Phase Simulator</h1>
+  <p>36 teams in 4 pots of 9. Every team plays 8 matches: two opponents from each pot, one at home and one away. Win 3, draw 1, loss 0. The default settings are fitted to betting odds. Move a slider and the simulation re-runs in your browser.</p>
+</header>
+
+<div class="layout">
+  <aside class="card controls" aria-label="Simulation settings">
+    <div class="btns">
+      <button type="button" id="runBtn" class="primary">Run again</button>
+      <button type="button" data-preset="default">Champions League</button>
+      <button type="button" data-preset="uel">Europa League</button>
+      <button type="button" data-preset="old">Earlier settings</button>
+      <button type="button" data-preset="equal">Equal teams</button>
+      <button type="button" data-preset="live">2026-27 draw rate</button>
+    </div>
+    <div class="status" id="status" aria-live="polite"></div>
+    <div class="bar"><i id="prog"></i></div>
+    <div id="sliders" style="margin-top:14px"></div>
+  </aside>
+
+  <main>
+    <section class="card">
+      <h2>Points needed at each cut-off</h2>
+      <div class="kpis" id="kpis"></div>
+      <p class="mini" id="kpiNote"></p>
+    </section>
+
+    <section class="card chart">
+      <h2>How often each points total finishes 8th, 16th and 24th</h2>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--c8)"></i>8th (last direct place)</span>
+        <span><i class="dot" style="background:var(--c16)"></i>16th (last seeded play-off place)</span>
+        <span><i class="dot" style="background:var(--c24)"></i>24th (last play-off place)</span>
+      </div>
+      <div id="chart"></div>
+      <div class="scroll"><table id="distTable"></table></div>
+    </section>
+
+    <section class="card">
+      <h2>Results by team group</h2>
+      <p class="note" style="margin-top:-4px">Each pot is split into a stronger group (a) and a weaker group (b). Percentages are the share of team-seasons ending in that zone.</p>
+      <div class="scroll"><table id="tierTable"></table></div>
+    </section>
+
+    <section class="card">
+      <h2>Home team win / draw / loss odds</h2>
+      <p class="note" style="margin-top:-4px">Rows are the home group, columns the away group. These update live as you move the sliders and are averaged over the random team strengths.</p>
+      <div class="scroll"><table class="matrix" id="matrix"></table></div>
+    </section>
+
+    <section class="card">
+      <h2>Compared with the betting market</h2>
+      <p class="note" style="margin-top:-4px">Champions League bookmaker odds for 57 league-phase games of 2026-27 (matchdays 1-4), bookmaker margin removed, averaged by pot pairing. The default settings were fitted to these; the Europa League preset sits halfway between the Champions League fit and a separate fit to 13 Europa League games (matchdays 3-4).</p>
+      <div class="scroll"><table id="cmpTable"></table></div>
+      <p class="mini" id="cmpNote"></p>
+    </section>
+
+    <section class="card">
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+        <h2 style="margin:0">One simulated season</h2>
+        <button type="button" id="oneBtn">Simulate another season</button>
+      </div>
+      <div class="scroll"><table id="oneTable"></table></div>
+      <p class="mini">Ties on points are broken by wins, then at random, since goals are not modelled. Chips show matchdays 1-8: W win, T draw, L loss. Hover a chip for the opponent.</p>
+    </section>
+
+    <section class="card">
+      <h2>Real tables for comparison</h2>
+      <div class="scroll"><table id="realTable"></table></div>
+      <p class="mini">Points of the 8th, 16th and 24th place teams in the completed league phases since the format began, and the share of matches that were drawn.</p>
+    </section>
+  </main>
+</div>
+
+<footer>
+  How it works: each simulated season draws a fresh fixture list, nudges the settings by a small random amount, gives every team its own random strength, then plays all 144 matches. A match's odds come from the strength gap plus home advantage (the log-odds of winning rather than losing); the chance of a draw falls as the gap grows. Defaults were fitted to bookmaker odds for 57 league-phase games of 2026-27.
+</footer>
+</div>
+
+<script>
+"use strict";
+/* ============================ model constants ============================ */
+const N_POTS = 4, PER_POT = 9, N_TEAMS = 36, N_TIERS = 8, N_WEEKS = 8;
+const TIE_MIN = 0.02;
+const CUTS = [8, 16, 24];
+const CUT_COLORS = ["var(--c8)", "var(--c16)", "var(--c24)"];
+const CUT_NAMES = ["8th", "16th", "24th"];
+
+/* ================================ settings =============================== */
+/* Defaults are fitted to bookmaker odds for 57 league-phase games of 2026-27 (matchdays 1-4). */
+const DEFS = [
+  {g:"Pot strength", fold:"Pot strength", id:"s0", label:"Pot 1 strength", min:0, max:3.5, step:0.05, v:2.32, fmt:v=>v.toFixed(2)},
+  {g:"Pot strength", fold:"Pot strength", id:"s1", label:"Pot 2 strength", min:0, max:3.5, step:0.05, v:1.22, fmt:v=>v.toFixed(2)},
+  {g:"Pot strength", fold:"Pot strength", id:"s2", label:"Pot 3 strength", min:0, max:3.5, step:0.05, v:0.59, fmt:v=>v.toFixed(2)},
+  {g:"Pot strength", fold:"Pot strength", id:"s3", label:"Pot 4 strength", min:0, max:3.5, step:0.05, v:0.00, fmt:v=>v.toFixed(2),
+    hint:"Strength is the log-odds of winning rather than losing. A gap of 1.0 means the stronger side wins about 73% of decided matches."},
+  {g:"Inside each pot", fold:"Inside each pot", id:"sub", label:"Gap between stronger and weaker group", min:0, max:1, step:0.05, v:0.35, fmt:v=>v.toFixed(2)},
+  {g:"Inside each pot", fold:"Inside each pot", id:"upper", label:"Teams in the stronger group", min:1, max:8, step:1, v:4, fmt:v=>String(v),
+    hint:"The rest of the pot's 9 teams form the weaker group."},
+  {g:"Inside each pot", fold:"Inside each pot", id:"teamSd", label:"Random strength of each team", min:0, max:1, step:0.01, v:0.43, fmt:v=>v.toFixed(2),
+    hint:"Every team gets its own random strength each season. The betting odds imply teams in a pot differ by about 0.47 in total (this plus the group gap)."},
+  {g:"Home and away", id:"home", label:"Home advantage", min:0, max:1.5, step:0.05, v:0.60, fmt:v=>v.toFixed(2)},
+  {g:"Home and away", id:"h0", label:"Pot 1 extra home edge", min:-0.5, max:0.5, step:0.05, v:0, fmt:sgn, fold:"Home edge by pot"},
+  {g:"Home and away", id:"h1", label:"Pot 2 extra home edge", min:-0.5, max:0.5, step:0.05, v:0, fmt:sgn, fold:"Home edge by pot"},
+  {g:"Home and away", id:"h2", label:"Pot 3 extra home edge", min:-0.5, max:0.5, step:0.05, v:0, fmt:sgn, fold:"Home edge by pot"},
+  {g:"Home and away", id:"h3", label:"Pot 4 extra home edge", min:-0.5, max:0.5, step:0.05, v:0, fmt:sgn, fold:"Home edge by pot"},
+  {g:"Draws", id:"draw", label:"Share of matches drawn", min:2, max:34, step:0.5, v:20.3, fmt:v=>v.toFixed(1)+"%",
+    hint:"Betting odds imply about 20%. Real league phases: 12-24%; this season so far 9.7%."},
+  {g:"Draws", fold:"Draw fade", id:"fade", label:"Draws fade in lopsided matches", min:0, max:0.15, step:0.005, v:0.059, fmt:v=>v.toFixed(3),
+    hint:"Betting odds: about 27% draws between even sides, about 12% when one side is a big favourite."},
+  {g:"Randomness between seasons", fold:"Randomness between seasons", id:"sdS", label:"Pot strength wobble", min:0, max:0.4, step:0.01, v:0.10, fmt:v=>v.toFixed(2)},
+  {g:"Randomness between seasons", fold:"Randomness between seasons", id:"sdH", label:"Home advantage wobble", min:0, max:0.4, step:0.01, v:0.08, fmt:v=>v.toFixed(2)},
+  {g:"Randomness between seasons", fold:"Randomness between seasons", id:"sdT", label:"Draw level wobble", min:0, max:0.05, step:0.005, v:0.01, fmt:v=>v.toFixed(3),
+    hint:"Each season the settings are nudged by this much, so you are not running the same season 1,000 times. The fit's own uncertainty is about 0.2 on pot strength and 0.09 on home advantage."},
+  {g:"Run", id:"nSims", label:"Number of seasons", min:100, max:5000, step:100, v:1000, fmt:v=>v.toLocaleString("en-US")},
+  {g:"Run", id:"seed", label:"Random seed", type:"number", v:2026}
+];
+function sgn(v){return (v>0?"+":"")+v.toFixed(2)}
+const PRESETS = {
+  default:{},
+  old:{s0:1.65,s1:1.10,s2:0.55,s3:0,home:0.65,teamSd:0,draw:16.8,fade:0.066,sdS:0.05,sdH:0.05},
+  equal:{s0:0,s1:0,s2:0,s3:0,sub:0,teamSd:0},
+  live:{draw:9.7},
+  uel:{s0:1.25,s1:0.65,s2:0.30,s3:0,sub:0.20,teamSd:0.56,home:0.50,draw:22.0,fade:0.055,sdS:0.10,sdH:0.09,sdT:0.01}
+};
+const cfg = {};
+DEFS.forEach(d=>cfg[d.id]=d.v);
+
+/* =================================== rng ================================= */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gauss(r){let u=0;while(u===0)u=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*r())}
+function shuffle(a,r){for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));const t=a[i];a[i]=a[j];a[j]=t}}
+
+/* ================================ fixtures =============================== */
+function buildFixtures(r){
+  const pots=[];
+  for(let p=0;p<N_POTS;p++){const a=[];for(let k=0;k<PER_POT;k++)a.push(p*PER_POT+k);pots.push(a)}
+  const games=[];
+  for(let a=0;a<N_POTS;a++){
+    const A=pots[a].slice(); shuffle(A,r);
+    for(let k=0;k<PER_POT;k++) games.push([A[k],A[(k+1)%PER_POT]]);
+    for(let b=a+1;b<N_POTS;b++){
+      const B=pots[b].slice(); shuffle(B,r);
+      for(let k=0;k<PER_POT;k++){games.push([A[k],B[k]]);games.push([B[k],A[(k+1)%PER_POT]])}
+    }
+  }
+  return games;
+}
+/* Spread the 144 matches over 8 matchdays (edge colouring with Kempe-chain repair). */
+function scheduleWeeks(games,r){
+  const colAt=Array.from({length:N_TEAMS},()=>new Map());
+  const weekOf=new Array(games.length).fill(-1);
+  const other=(e,t)=>games[e][0]===t?games[e][1]:games[e][0];
+  const order=games.map((_,i)=>i); shuffle(order,r);
+  for(const e of order){
+    const u=games[e][0], v=games[e][1];
+    const fu=[],fv=[];
+    for(let c=0;c<N_WEEKS;c++){if(!colAt[u].has(c))fu.push(c);if(!colAt[v].has(c))fv.push(c)}
+    const common=fu.filter(c=>fv.includes(c));
+    let c;
+    if(common.length){c=common[Math.floor(r()*common.length)]}
+    else{
+      const a=fu[0], b=fv[0];
+      const path=[]; let cur=v, c2=a; const seen=new Set([v]);
+      while(colAt[cur].has(c2)){
+        const pe=colAt[cur].get(c2); path.push(pe); cur=other(pe,cur);
+        if(seen.has(cur)) return null;
+        seen.add(cur); c2=(c2===a)?b:a;
+      }
+      if(seen.has(u)) return null;
+      const old=path.map(pe=>[pe,weekOf[pe]]);
+      for(const [pe,oc] of old){colAt[games[pe][0]].delete(oc);colAt[games[pe][1]].delete(oc)}
+      for(const [pe,oc] of old){const nc=(oc===a)?b:a;colAt[games[pe][0]].set(nc,pe);colAt[games[pe][1]].set(nc,pe);weekOf[pe]=nc}
+      c=a;
+    }
+    colAt[u].set(c,e); colAt[v].set(c,e); weekOf[e]=c;
+  }
+  const weeks=Array.from({length:N_WEEKS},()=>[]);
+  weekOf.forEach((w,e)=>weeks[w].push(e));
+  return weeks.every(w=>w.length===games.length/N_WEEKS)?weeks:null;
+}
+function makeSchedule(r){
+  for(;;){const g=buildFixtures(r);const w=scheduleWeeks(g,r);if(w)return {games:g,weeks:w}}
+}
+
+/* ================================ match model ============================ */
+function tierOfTeam(t,upper){const p=Math.floor(t/PER_POT);return p*2+((t%PER_POT)<upper?0:1)}
+function tierLabel(k){return (k>>1)+1+"ab"[k&1]}
+function tierMap(upper){const m=new Int8Array(N_TEAMS);for(let t=0;t<N_TEAMS;t++)m[t]=tierOfTeam(t,upper);return m}
+function potStrengths(c,pert){return [c.s0,c.s1,c.s2,c.s3].map((s,i)=>s+(pert?pert.dS[i]:0))}
+function tierStrength(c,k,S){return S[k>>1]+((k&1)?-c.sub/2:c.sub/2)}
+const hEdge=c=>[c.h0,c.h1,c.h2,c.h3];
+
+/* x = strength gap incl. home edge (log-odds of home win vs away win). Draw chance falls with |x|. */
+function probsFromX(x,c0,fade){
+  const tie=Math.max(TIE_MIN,c0-fade*Math.abs(x));
+  const win=(1-tie)/(1+Math.exp(-x));
+  return [win,tie,1-tie-win];
+}
+/* Draw level c0 (draw chance in an even match) that gives the requested average draw share,
+   measured on a fixed sample of matchups that includes the random team strengths. */
+let SAMPLE=null;
+function matchupSample(){
+  if(SAMPLE)return SAMPLE;
+  const r=mulberry32(12345),K=3000,h=new Int16Array(K),a=new Int16Array(K),z=new Float64Array(K);
+  for(let i=0;i<K;i++){
+    const hh=Math.floor(r()*N_TEAMS);let aa;
+    do{aa=Math.floor(r()*N_POTS)*PER_POT+Math.floor(r()*PER_POT)}while(aa===hh);
+    h[i]=hh;a[i]=aa;z[i]=gauss(r)-gauss(r);
+  }
+  return SAMPLE={K,h,a,z};
+}
+function calibrateDraw(c){
+  const sm=matchupSample(),tm=tierMap(c.upper),S=potStrengths(c,null),he=hEdge(c),ax=new Float64Array(sm.K);
+  for(let i=0;i<sm.K;i++){
+    const x=tierStrength(c,tm[sm.h[i]],S)-tierStrength(c,tm[sm.a[i]],S)+c.home+he[Math.floor(sm.h[i]/PER_POT)]+c.teamSd*sm.z[i];
+    ax[i]=Math.abs(x);
+  }
+  const target=c.draw/100;
+  const avg=c0=>{let s=0;for(let i=0;i<sm.K;i++)s+=Math.max(TIE_MIN,c0-c.fade*ax[i]);return s/sm.K};
+  let lo=0,hi=0.7;
+  for(let it=0;it<30;it++){const mid=(lo+hi)/2;if(avg(mid)<target)lo=mid;else hi=mid}
+  return (lo+hi)/2;
+}
+/* Average odds for a mean strength gap x0, averaged over the random team strengths (7-point Gaussian quadrature). */
+const GH_X=[0,1.15440541,-1.15440541,2.36675941,-2.36675941,3.75043972,-3.75043972];
+const GH_W=[0.45714286,0.24012317,0.24012317,0.03075712,0.03075712,0.00054826,0.00054826];
+function avgProbs(c,c0,x0){
+  const sd=Math.SQRT2*c.teamSd;let w=0,t=0;
+  for(let i=0;i<GH_X.length;i++){const p=probsFromX(x0+sd*GH_X[i],c0,c.fade);w+=GH_W[i]*p[0];t+=GH_W[i]*p[1]}
+  return [w,t,1-w-t];
+}
+
+/* ================================ simulation ============================= */
+function seasonStrengths(c,tm,S,r,out){
+  for(let t=0;t<N_TEAMS;t++)out[t]=tierStrength(c,tm[t],S)+gauss(r)*c.teamSd;
+}
+function playSeason(games,str,home,he,c0,fade,r,pts,wins,rec){
+  pts.fill(0);wins.fill(0);
+  for(let i=0;i<games.length;i++){
+    const h=games[i][0],a=games[i][1];
+    const p=probsFromX(str[h]-str[a]+home+he[Math.floor(h/PER_POT)],c0,fade),x=r();
+    let res;
+    if(x<p[0]){pts[h]+=3;wins[h]++;res=0}
+    else if(x<p[0]+p[1]){pts[h]++;pts[a]++;res=1}
+    else{pts[a]+=3;wins[a]++;res=2}
+    if(rec)rec(i,h,a,res);
+  }
+}
+function rankTeams(pts,wins,r){
+  const key=new Float64Array(N_TEAMS);for(let i=0;i<N_TEAMS;i++)key[i]=r();
+  const idx=Array.from({length:N_TEAMS},(_,i)=>i);
+  idx.sort((x,y)=>(pts[y]-pts[x])||(wins[y]-wins[x])||(key[x]-key[y]));
+  return idx;
+}
+function perturbation(c,r){
+  return {dS:[gauss(r)*c.sdS,gauss(r)*c.sdS,gauss(r)*c.sdS,gauss(r)*c.sdS],dH:gauss(r)*c.sdH,dT:gauss(r)*c.sdT};
+}
+
+let runToken=0;
+function runBatch(c){
+  const token=++runToken, n=Math.round(c.nSims), master=mulberry32(Math.round(c.seed)||1);
+  const c0=calibrateDraw(c), tm=tierMap(c.upper), he=hEdge(c);
+  const counts=CUTS.map(()=>new Uint32Array(70));
+  const tierPts=new Float64Array(N_TIERS), tierTop=new Float64Array(N_TIERS), tierPlay=new Float64Array(N_TIERS), tierOut=new Float64Array(N_TIERS);
+  const tierSize=new Float64Array(N_TIERS); for(let t=0;t<N_TEAMS;t++)tierSize[tm[t]]++;
+  const cutVals=CUTS.map(()=>new Array(n));
+  const pts=new Int32Array(N_TEAMS), wins=new Int32Array(N_TEAMS), str=new Float64Array(N_TEAMS);
+  let done=0, drawn=0, played=0;
+  const stat=$("status"), prog=$("prog");
+  stat.textContent="Running "+n.toLocaleString("en-US")+" seasons...";
+  return new Promise(resolve=>{
+    function chunk(){
+      if(token!==runToken){resolve(null);return}
+      const t0=performance.now();
+      while(done<n && performance.now()-t0<30){
+        const r=mulberry32(Math.floor(master()*4294967296));
+        const pert=perturbation(c,r), S=potStrengths(c,pert);
+        seasonStrengths(c,tm,S,r,str);
+        const games=buildFixtures(r);
+        playSeason(games,str,c.home+pert.dH,he,c0+pert.dT,c.fade,r,pts,wins,(i,h,a,res)=>{if(res===1)drawn++;played++});
+        const order=rankTeams(pts,wins,r);
+        CUTS.forEach((pos,j)=>{const v=pts[order[pos-1]];counts[j][v]++;cutVals[j][done]=v});
+        for(let p=0;p<N_TEAMS;p++){
+          const t=order[p],k=tm[t];tierPts[k]+=pts[t];
+          if(p<8)tierTop[k]++;else if(p<24)tierPlay[k]++;else tierOut[k]++;
+        }
+        done++;
+      }
+      prog.style.width=(100*done/n)+"%";
+      if(done<n){setTimeout(chunk,0)}
+      else{
+        stat.textContent=n.toLocaleString("en-US")+" seasons simulated.";
+        setTimeout(()=>{if(token===runToken)prog.style.width="0"},400);
+        resolve({n,counts,cutVals,tierPts,tierTop,tierPlay,tierOut,tierSize,drawRate:drawn/played,c0});
+      }
+    }
+    chunk();
+  });
+}
+
+/* ================================== render =============================== */
+const $=id=>document.getElementById(id);
+const pct=(x,d=1)=>(100*x).toFixed(d)+"%";
+function stats(vals){
+  const n=vals.length;let m=0;for(const v of vals)m+=v;m/=n;
+  let s=0;for(const v of vals)s+=(v-m)*(v-m);
+  return {mean:m,sd:Math.sqrt(s/n)};
+}
+function renderResults(res,c){
+  if(!res)return;
+  const {n,counts,cutVals}=res;
+  /* KPIs */
+  $("kpis").innerHTML=CUTS.map((pos,j)=>{
+    const st=stats(cutVals[j]);
+    let best=0;for(let v=0;v<70;v++)if(counts[j][v]>counts[j][best])best=v;
+    return `<div class="kpi"><div class="t"><i class="dot" style="background:${CUT_COLORS[j]}"></i>${CUT_NAMES[j]} place</div>
+      <div class="v">${st.mean.toFixed(1)} pts</div>
+      <div class="s">Most common: ${best} pts (${pct(counts[j][best]/n,0)}) &middot; spread &plusmn;${st.sd.toFixed(2)}</div></div>`;
+  }).join("");
+  $("kpiNote").textContent="Average over "+n.toLocaleString("en-US")+" seasons. Draws in the simulated matches: "+pct(res.drawRate)+".";
+  /* chart */
+  let lo=70,hi=0;
+  for(let j=0;j<3;j++)for(let v=0;v<70;v++)if(counts[j][v]>0){lo=Math.min(lo,v);hi=Math.max(hi,v)}
+  lo=Math.max(0,lo-1);hi=hi+1;
+  const xs=[];for(let v=lo;v<=hi;v++)xs.push(v);
+  let ymax=0;for(let j=0;j<3;j++)for(const v of xs)ymax=Math.max(ymax,counts[j][v]/n);
+  const yTop=Math.max(0.1,Math.ceil(ymax*10)/10);
+  const W=760,H=322,L=44,R=10,T=10,B=54, iw=W-L-R, ih=H-T-B, gw=iw/xs.length, bw=Math.min(18,gw/3.4);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Distribution of points at 8th, 16th and 24th place">`;
+  for(let g=0;g<=5;g++){
+    const yv=yTop*g/5, y=T+ih-ih*g/5;
+    svg+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${L-6}" y="${y+4}" text-anchor="end">${Math.round(yv*100)}%</text>`;
+  }
+  xs.forEach((v,i)=>{
+    const cx=L+gw*(i+0.5);
+    svg+=`<text x="${cx}" y="${H-32}" text-anchor="middle">${v}</text>`;
+    for(let j=0;j<3;j++){
+      const share=counts[j][v]/n; if(share<=0)continue;
+      const h=ih*share/yTop, x=cx+(j-1)*(bw+2)-bw/2;
+      svg+=`<rect x="${x}" y="${T+ih-h}" width="${bw}" height="${h}" rx="2" fill="${CUT_COLORS[j]}"><title>${CUT_NAMES[j]} place: ${v} pts in ${pct(share)} of seasons</title></rect>`;
+    }
+  });
+  svg+=`<text x="${L+iw/2}" y="${H-8}" text-anchor="middle">points after 8 matchdays</text></svg>`;
+  $("chart").innerHTML=svg;
+  /* distribution table */
+  const rows=xs.filter(v=>CUTS.some((_,j)=>counts[j][v]/n>=0.0005));
+  $("distTable").innerHTML=`<thead><tr><th>Points</th>${CUT_NAMES.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>`+
+    rows.map(v=>`<tr><td>${v}</td>${[0,1,2].map(j=>`<td>${counts[j][v]?pct(counts[j][v]/n):"&ndash;"}</td>`).join("")}</tr>`).join("")+
+    `</tbody><tfoot><tr><td><b>Mean</b></td>${[0,1,2].map(j=>`<td><b>${stats(cutVals[j]).mean.toFixed(2)}</b></td>`).join("")}</tr></tfoot>`;
+  /* tier table */
+  let tr=`<thead><tr><th>Group</th><th>Teams</th><th>Avg points</th><th>Top 8</th><th>Play-off (9-24)</th><th>Out (25-36)</th></tr></thead><tbody>`;
+  for(let k=0;k<N_TIERS;k++){
+    const d=res.n*res.tierSize[k];
+    if(!d){tr+=`<tr><td>Pot ${(k>>1)+1}${"ab"[k&1]}</td><td>0</td><td colspan="4" class="note">no teams</td></tr>`;continue}
+    const top=res.tierTop[k]/d, pl=res.tierPlay[k]/d, ou=res.tierOut[k]/d;
+    tr+=`<tr><td>Pot ${(k>>1)+1}${"ab"[k&1]}</td><td>${res.tierSize[k]}</td><td>${(res.tierPts[k]/d).toFixed(2)}</td>
+      <td><span class="inline-bar" style="width:${Math.round(top*60)}px"></span>${pct(top)}</td>
+      <td><span class="inline-bar" style="width:${Math.round(pl*60)}px;background:var(--c16)"></span>${pct(pl)}</td>
+      <td><span class="inline-bar" style="width:${Math.round(ou*60)}px;background:var(--c24)"></span>${pct(ou)}</td></tr>`;
+  }
+  $("tierTable").innerHTML=tr+"</tbody>";
+}
+function renderMatrix(c){
+  const c0=calibrateDraw(c), S=potStrengths(c,null), he=hEdge(c);
+  let h=`<thead><tr><th>Home \\ Away</th>${Array.from({length:N_TIERS},(_,j)=>`<th>${tierLabel(j)}</th>`).join("")}</tr></thead><tbody>`;
+  for(let i=0;i<N_TIERS;i++){
+    h+=`<tr><th>${tierLabel(i)}</th>`;
+    for(let j=0;j<N_TIERS;j++){
+      const [w,t,l]=avgProbs(c,c0,tierStrength(c,i,S)-tierStrength(c,j,S)+c.home+he[i>>1]);
+      const a=Math.max(0,Math.min(0.55,(w-0.2)*0.9));
+      h+=`<td style="background:color-mix(in srgb, var(--win) ${Math.round(a*100)}%, transparent)" title="Home win ${pct(w)}, draw ${pct(t)}, home loss ${pct(l)}">${Math.round(w*100)}/${Math.round(t*100)}/${Math.round(l*100)}</td>`;
+    }
+    h+="</tr>";
+  }
+  $("matrix").innerHTML=h+"</tbody>";
+}
+/* Betting-market averages by pot pairing (57 games, 2026-27 matchdays 1-4, margin removed): home pot, away pot, games, H%, D%, A% */
+const MARKET=[[1,1,6,46.0,23.4,30.6],[1,2,2,63.3,18.6,18.1],[1,3,6,77.2,14.0,8.7],[1,4,2,90.1,7.1,2.8],
+ [2,1,2,23.7,23.5,52.9],[2,2,4,47.5,23.7,28.9],[2,3,5,55.9,22.6,21.5],[2,4,5,73.2,15.0,11.8],
+ [3,1,6,18.7,20.7,60.6],[3,2,4,38.6,25.1,36.3],[3,3,3,51.9,23.6,24.5],[3,4,2,50.4,23.2,26.4],
+ [4,1,3,17.2,19.3,63.5],[4,2,2,25.8,20.8,53.3],[4,3,1,48.9,24.9,26.3],[4,4,4,58.2,20.9,20.9]];
+function renderCompare(c){
+  const c0=calibrateDraw(c), S=potStrengths(c,null), he=hEdge(c), up=c.upper/PER_POT;
+  const grp=p=>[[2*p,up],[2*p+1,1-up]];
+  let rows="",ae=[0,0,0],ng=0;
+  for(const [hp,ap,n,mh,md,ma] of MARKET){
+    let w=0,t=0;
+    for(const [ti,wi] of grp(hp-1))for(const [tj,wj] of grp(ap-1)){
+      const p=avgProbs(c,c0,tierStrength(c,ti,S)-tierStrength(c,tj,S)+c.home+he[hp-1]);w+=wi*wj*p[0];t+=wi*wj*p[1];
+    }
+    const l=1-w-t, d=[w*100-mh,t*100-md,l*100-ma];
+    for(let i=0;i<3;i++)ae[i]+=n*Math.abs(d[i]);ng+=n;
+    rows+=`<tr><td>Pot ${hp} home v pot ${ap}</td><td>${n}</td><td>${mh.toFixed(0)}/${md.toFixed(0)}/${ma.toFixed(0)}</td><td>${(w*100).toFixed(0)}/${(t*100).toFixed(0)}/${(l*100).toFixed(0)}</td><td>${d[0]>0?"+":""}${d[0].toFixed(0)}</td></tr>`;
+  }
+  $("cmpTable").innerHTML=`<thead><tr><th>Matchup</th><th>Games</th><th>Betting odds W/D/L %</th><th>This model W/D/L %</th><th>Home win gap (pts)</th></tr></thead><tbody>${rows}</tbody>`;
+  $("cmpNote").textContent=`Average gap to the betting market across the 57 games: home win ${(ae[0]/ng).toFixed(1)} points, draw ${(ae[1]/ng).toFixed(1)}, away win ${(ae[2]/ng).toFixed(1)}. Individual games differ more because the model only knows pots, not the specific teams.`;
+}
+let oneSeed=Math.floor(Math.random()*1e9);
+function renderOne(c){
+  const r=mulberry32(oneSeed), tm=tierMap(c.upper), c0=calibrateDraw(c), he=hEdge(c);
+  const pert=perturbation(c,r), S=potStrengths(c,pert);
+  const str=new Float64Array(N_TEAMS); seasonStrengths(c,tm,S,r,str);
+  const sch=makeSchedule(r);
+  const pts=new Int32Array(N_TEAMS), wins=new Int32Array(N_TEAMS), draws=new Int32Array(N_TEAMS);
+  const seq=Array.from({length:N_TEAMS},()=>new Array(N_WEEKS));
+  const weekOfGame=new Int8Array(sch.games.length);
+  sch.weeks.forEach((w,wi)=>w.forEach(e=>weekOfGame[e]=wi));
+  playSeason(sch.games,str,c.home+pert.dH,he,c0+pert.dT,c.fade,r,pts,wins,(i,h,a,res)=>{
+    const wk=weekOfGame[i];
+    const nm=t=>"Pot "+tierLabel(tm[t])+" #"+(t%PER_POT+1);
+    if(res===1){draws[h]++;draws[a]++}
+    const hc=["W","T","L"][res], ac=["L","T","W"][res];
+    seq[h][wk]={c:hc,tip:hc+" at home vs "+nm(a)};
+    seq[a][wk]={c:ac,tip:ac+" away at "+nm(h)};
+  });
+  const order=rankTeams(pts,wins,r);
+  let h=`<thead><tr><th>#</th><th>Team</th><th>W</th><th>D</th><th>L</th><th>Pts</th><th>Matchdays 1-8</th></tr></thead><tbody>`;
+  order.forEach((t,p)=>{
+    const z=p<8?"z-top":p<24?"z-play":"z-out";
+    h+=`<tr class="${z}"><td>${p+1}</td><td>Pot ${tierLabel(tm[t])} &middot; team ${t%PER_POT+1}</td><td>${wins[t]}</td><td>${draws[t]}</td><td>${8-wins[t]-draws[t]}</td><td><b>${pts[t]}</b></td>
+      <td><span class="chips">${seq[t].map(s=>`<span class="chip ${s.c}" title="${s.tip}">${s.c}</span>`).join("")}</span></td></tr>`;
+  });
+  $("oneTable").innerHTML=h+"</tbody>";
+}
+const REAL=[
+  ["Champions League 2024-25",16,13,11,"12.5%"],
+  ["Champions League 2025-26",16,12,9,"17.4%"],
+  ["Europa League 2024-25",14,12,10,"24.3%"],
+  ["Europa League 2025-26",16,13,9,"17.4%"]
+];
+function renderReal(){
+  $("realTable").innerHTML=`<thead><tr><th>Season</th><th>8th</th><th>16th</th><th>24th</th><th>Draws</th></tr></thead><tbody>`+
+    REAL.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td>${r[4]}</td></tr>`).join("")+`</tbody>`;
+}
+
+/* ================================== controls ============================= */
+const inputs={}, FOLDS={};
+function buildControls(){
+  const host=$("sliders"); let lastG=null, grp=null;
+  const allFolded=g=>DEFS.filter(x=>x.g===g).every(x=>x.fold);
+  DEFS.forEach(d=>{
+    if(d.g!==lastG){
+      grp=document.createElement("div");grp.className="group";
+      if(!allFolded(d.g))grp.innerHTML=`<h2>${d.g}</h2>`;
+      host.appendChild(grp);lastG=d.g;
+    }
+    const row=document.createElement("div");row.className="row";
+    if(d.type==="number"){
+      row.innerHTML=`<label for="in_${d.id}">${d.label}</label><span></span>`;
+      const inp=document.createElement("input");inp.type="number";inp.id="in_"+d.id;inp.value=d.v;inp.step=1;
+      inp.style.gridColumn="1/-1";row.appendChild(inp);inputs[d.id]={inp,out:null,d};
+      inp.addEventListener("input",()=>{cfg[d.id]=Number(inp.value)||1;schedule()});
+    }else{
+      row.innerHTML=`<label for="in_${d.id}">${d.label}</label><output id="out_${d.id}"></output>`;
+      const inp=document.createElement("input");inp.type="range";inp.id="in_"+d.id;
+      inp.min=d.min;inp.max=d.max;inp.step=d.step;inp.value=d.v;row.appendChild(inp);
+      if(d.hint){const p=document.createElement("div");p.className="hint";p.textContent=d.hint;row.appendChild(p)}
+      inputs[d.id]={inp,out:row.querySelector("output"),d};
+      const commit=()=>{cfg[d.id]=Number(inp.value);sync(d.id);schedule()};
+      /* Touch guard: a vertical swipe that starts on a slider must scroll the page, not move the slider. */
+      const ts={active:false,decided:null,prev:null,sx:0,sy:0};
+      inp.addEventListener("pointerdown",e=>{
+        if(e.pointerType!=="touch")return;
+        ts.active=true;ts.decided=null;ts.prev=inp.value;ts.sx=e.clientX;ts.sy=e.clientY;
+      });
+      inp.addEventListener("pointermove",e=>{
+        if(!ts.active||ts.decided)return;
+        const dx=Math.abs(e.clientX-ts.sx),dy=Math.abs(e.clientY-ts.sy);
+        if(dx>8&&dx>=dy){ts.decided="h";commit()}
+        else if(dy>8&&dy>dx){ts.decided="v";inp.value=ts.prev}
+      });
+      const endTouch=e=>{
+        if(!ts.active)return;
+        if(ts.decided==="v"||(e.type==="pointercancel"&&ts.decided!=="h"))inp.value=ts.prev;
+        else if(ts.decided!=="h")commit();   /* a plain tap on the track */
+        ts.active=false;
+      };
+      inp.addEventListener("pointerup",endTouch);
+      inp.addEventListener("pointercancel",endTouch);
+      inp.addEventListener("input",()=>{if(ts.active&&ts.decided!=="h")return;commit()});
+      /* After a mouse or finger interaction, drop keyboard focus so Home/End/PageUp/PageDown scroll the page. */
+      inp.addEventListener("pointerup",e=>{if(e.pointerType==="mouse"||e.pointerType==="touch")setTimeout(()=>inp.blur(),0)});
+    }
+    if(d.fold){
+      let box=FOLDS[d.fold];
+      if(!box){
+        box=document.createElement("details");box.className="fold";box.ids=[];
+        box.innerHTML=`<summary><span class="t">${d.fold}<span class="badge" hidden>changed</span></span><span class="sum"></span></summary><div class="body"></div>`;
+        FOLDS[d.fold]=box;grp.appendChild(box);
+      }
+      box.querySelector(".body").appendChild(row);box.ids.push(d.id);
+    }else grp.appendChild(row);
+    sync(d.id);
+  });
+}
+function sync(id){
+  const o=inputs[id];if(!o)return;
+  if(o.out)o.out.textContent=o.d.fmt(cfg[id]);
+  const box=o.d.fold&&FOLDS[o.d.fold];
+  if(box){   /* collapsed sections still show their current values, and flag when changed from the defaults */
+    const ds=box.ids.map(i=>inputs[i]&&inputs[i].d).filter(Boolean);
+    box.querySelector(".sum").textContent=ds.map(x=>x.fmt(cfg[x.id])).join("  \u00b7  ");
+    box.querySelector(".badge").hidden=!ds.some(x=>Math.abs(cfg[x.id]-x.v)>1e-9);
+  }
+}
+function setAll(vals){
+  DEFS.forEach(d=>{
+    const v=(d.id in vals)?vals[d.id]:d.v;
+    if(["nSims","seed"].includes(d.id)&&!(d.id in vals))return;
+    cfg[d.id]=v;inputs[d.id].inp.value=v;sync(d.id);
+  });
+}
+let timer=null;
+function schedule(){clearTimeout(timer);renderMatrix(cfg);renderCompare(cfg);timer=setTimeout(()=>go(),250)}
+async function go(){
+  renderMatrix(cfg);
+  renderCompare(cfg);
+  renderOne(cfg);
+  const res=await runBatch(cfg);
+  if(res)renderResults(res,cfg);
+}
+document.querySelectorAll("[data-preset]").forEach(b=>b.addEventListener("click",()=>{
+  setAll(PRESETS[b.dataset.preset]);go();
+}));
+$("runBtn").addEventListener("click",()=>{cfg.seed=Math.floor(Math.random()*1e6);inputs.seed.inp.value=cfg.seed;go()});
+$("oneBtn").addEventListener("click",()=>{oneSeed=Math.floor(Math.random()*1e9);renderOne(cfg)});
+const rootEl=document.documentElement;
+$("themeBtn").addEventListener("click",()=>{
+  const dark=getComputedStyle(rootEl).getPropertyValue("--bg").trim()==="#0f1317";
+  rootEl.dataset.theme=dark?"light":"dark";
+});
+buildControls();
+renderReal();
+go();
+
+/* exposed for testing */
+window.__sim={calibrateDraw,avgProbs,probsFromX,tierMap,tierStrength,potStrengths,makeSchedule,buildFixtures,cfg,runBatch,mulberry32};
+</script>
+</body>
+</html>
