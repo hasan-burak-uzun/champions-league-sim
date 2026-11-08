@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -127,10 +127,8 @@ a{color:var(--accent)}
 <div class="layout">
   <aside class="card controls" aria-label="Simulation settings">
     <div class="btns">
-      <button type="button" id="runBtn" class="primary">Run again</button>
       <button type="button" data-preset="default">Champions League</button>
       <button type="button" data-preset="uel">Europa League</button>
-      <button type="button" data-preset="old">Earlier settings</button>
       <button type="button" data-preset="equal">Equal teams</button>
       <button type="button" data-preset="live">2026-27 draw rate</button>
     </div>
@@ -236,20 +234,18 @@ const DEFS = [
   {g:"Randomness between seasons", fold:"Randomness between seasons", id:"sdS", label:"Pot strength wobble", min:0, max:0.4, step:0.01, v:0.10, fmt:v=>v.toFixed(2)},
   {g:"Randomness between seasons", fold:"Randomness between seasons", id:"sdH", label:"Home advantage wobble", min:0, max:0.4, step:0.01, v:0.08, fmt:v=>v.toFixed(2)},
   {g:"Randomness between seasons", fold:"Randomness between seasons", id:"sdT", label:"Draw level wobble", min:0, max:0.05, step:0.005, v:0.01, fmt:v=>v.toFixed(3),
-    hint:"Each season the settings are nudged by this much, so you are not running the same season 1,000 times. The fit's own uncertainty is about 0.2 on pot strength and 0.09 on home advantage."},
-  {g:"Run", id:"nSims", label:"Number of seasons", min:100, max:5000, step:100, v:1000, fmt:v=>v.toLocaleString("en-US")},
-  {g:"Run", id:"seed", label:"Random seed", type:"number", v:2026}
+    hint:"Each season the settings are nudged by this much, so you are not replaying the same season over and over. The fit's own uncertainty is about 0.2 on pot strength and 0.09 on home advantage."},
 ];
 function sgn(v){return (v>0?"+":"")+v.toFixed(2)}
 const PRESETS = {
   default:{},
-  old:{s0:1.65,s1:1.10,s2:0.55,s3:0,home:0.65,teamSd:0,draw:16.8,fade:0.066,sdS:0.05,sdH:0.05},
   equal:{s0:0,s1:0,s2:0,s3:0,sub:0,teamSd:0},
   live:{draw:9.7},
   uel:{s0:1.25,s1:0.65,s2:0.30,s3:0,sub:0.20,teamSd:0.56,home:0.50,draw:22.0,fade:0.055,sdS:0.10,sdH:0.09,sdT:0.01}
 };
 const cfg = {};
 DEFS.forEach(d=>cfg[d.id]=d.v);
+cfg.nSims=10000; cfg.seed=2026;   /* fixed: not user settings */
 
 /* =================================== rng ================================= */
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
@@ -625,7 +621,6 @@ function sync(id){
 function setAll(vals){
   DEFS.forEach(d=>{
     const v=(d.id in vals)?vals[d.id]:d.v;
-    if(["nSims","seed"].includes(d.id)&&!(d.id in vals))return;
     cfg[d.id]=v;inputs[d.id].inp.value=v;sync(d.id);
   });
 }
@@ -641,7 +636,6 @@ async function go(){
 document.querySelectorAll("[data-preset]").forEach(b=>b.addEventListener("click",()=>{
   setAll(PRESETS[b.dataset.preset]);go();
 }));
-$("runBtn").addEventListener("click",()=>{cfg.seed=Math.floor(Math.random()*1e6);inputs.seed.inp.value=cfg.seed;go()});
 $("oneBtn").addEventListener("click",()=>{oneSeed=Math.floor(Math.random()*1e9);renderOne(cfg)});
 const rootEl=document.documentElement;
 $("themeBtn").addEventListener("click",()=>{
