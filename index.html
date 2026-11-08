@@ -245,7 +245,8 @@ const PRESETS = {
 };
 const cfg = {};
 DEFS.forEach(d=>cfg[d.id]=d.v);
-cfg.nSims=10000; cfg.seed=2026;   /* fixed: not user settings */
+cfg.nSims=10000;   /* fixed: not a user setting */
+cfg.seed=(Date.now()^Math.floor(Math.random()*4294967296))>>>0;   /* new seed on every page load; unchanged while sliders move */
 
 /* =================================== rng ================================= */
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
