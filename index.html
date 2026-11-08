@@ -6,6 +6,12 @@
 <title>League Phase Simulator</title>
 <meta name="description" content="Monte Carlo simulator for the 36-team Champions League league phase. Adjust pot strength, home advantage, draw rate and randomness, and see where the 8th, 16th and 24th place cut-offs land.">
 <style>
+details.more>summary{cursor:pointer;color:var(--accent);list-style:none;font-size:14px;text-decoration:underline;margin-top:8px}
+details.more>summary::-webkit-details-marker{display:none}
+details.more>summary::before{content:attr(data-show)}
+details.more[open]>summary::before{content:attr(data-hide)}
+details.more[open]>summary{margin-bottom:12px}
+details.more>p.note:first-of-type{margin-top:0}
 :root{
   --bg:#f6f7f9; --card:#ffffff; --ink:#15181d; --muted:#5d6672; --line:#e1e5ea;
   --accent:#1f5fbf; --accent-soft:#e6eefb;
@@ -135,54 +141,58 @@ a{color:var(--accent)}
 
   <main>
     <section class="card">
-      <h2>Points needed at each cut-off</h2>
-      <div class="kpis" id="kpis"></div>
-      <p class="mini" id="kpiNote"></p>
-    </section>
-
-    <section class="card chart">
       <h2>How often each points total finishes 8th, 16th and 24th</h2>
-      <div class="legend">
-        <span><i class="dot" style="background:var(--c8)"></i>8th (last direct place)</span>
-        <span><i class="dot" style="background:var(--c16)"></i>16th (last seeded play-off place)</span>
-        <span><i class="dot" style="background:var(--c24)"></i>24th (last play-off place)</span>
-      </div>
-      <div id="chart"></div>
       <div class="scroll"><table id="distTable"></table></div>
-    </section>
-
-    <section class="card">
-      <h2>Results by team group</h2>
-      <p class="note" style="margin-top:-4px">Each pot is split into a stronger group (a) and a weaker group (b). Percentages are the share of team-seasons ending in that zone.</p>
-      <div class="scroll"><table id="tierTable"></table></div>
-    </section>
-
-    <section class="card">
-      <h2>Home team win / draw / loss odds</h2>
-      <p class="note" style="margin-top:-4px">Rows are the home group, columns the away group. These update live as you move the sliders and are averaged over the random team strengths.</p>
-      <div class="scroll"><table class="matrix" id="matrix"></table></div>
-    </section>
-
-    <section class="card">
-      <h2>Compared with the betting market</h2>
-      <p class="note" style="margin-top:-4px">Champions League bookmaker odds for 57 league-phase games of 2026-27 (matchdays 1-4), bookmaker margin removed, averaged by pot pairing. The default settings were fitted to these; the Europa League preset sits halfway between the Champions League fit and a separate fit to 13 Europa League games (matchdays 3-4).</p>
-      <div class="scroll"><table id="cmpTable"></table></div>
-      <p class="mini" id="cmpNote"></p>
-    </section>
-
-    <section class="card">
-      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
-        <h2 style="margin:0">One simulated season</h2>
-        <button type="button" id="oneBtn">Simulate another season</button>
-      </div>
-      <div class="scroll"><table id="oneTable"></table></div>
-      <p class="mini">Ties on points are broken by wins, then at random, since goals are not modelled. Chips show matchdays 1-8: W win, T draw, L loss. Hover a chip for the opponent.</p>
+      <p class="mini" id="kpiNote"></p>
+      <details class="more" id="chartBox">
+        <summary data-show="Show chart" data-hide="Hide chart"></summary>
+        <div class="legend">
+          <span><i class="dot" style="background:var(--c8)"></i>8th (last direct place)</span>
+          <span><i class="dot" style="background:var(--c16)"></i>16th (last seeded play-off place)</span>
+          <span><i class="dot" style="background:var(--c24)"></i>24th (last play-off place)</span>
+        </div>
+        <div id="chart" class="chart"></div>
+      </details>
     </section>
 
     <section class="card">
       <h2>Real tables for comparison</h2>
       <div class="scroll"><table id="realTable"></table></div>
       <p class="mini">Points of the 8th, 16th and 24th place teams in the completed league phases since the format began, and the share of matches that were drawn.</p>
+    </section>
+
+    <section class="card">
+      <details class="more">
+        <summary data-show="Show results by team group" data-hide="Hide results by team group"></summary>
+        <p class="note">Each pot is split into a stronger group (a) and a weaker group (b). Percentages are the share of team-seasons ending in that zone.</p>
+        <div class="scroll"><table id="tierTable"></table></div>
+      </details>
+    </section>
+
+    <section class="card">
+      <details class="more">
+        <summary data-show="Show home win / draw / loss odds by group" data-hide="Hide home win / draw / loss odds"></summary>
+        <p class="note">Rows are the home group, columns the away group. These update live as you move the sliders and are averaged over the random team strengths.</p>
+        <div class="scroll"><table class="matrix" id="matrix"></table></div>
+      </details>
+    </section>
+
+    <section class="card">
+      <details class="more">
+        <summary data-show="Show comparison with the betting market" data-hide="Hide comparison with the betting market"></summary>
+        <p class="note">Champions League bookmaker odds for 57 league-phase games of 2026-27 (matchdays 1-4), bookmaker margin removed, averaged by pot pairing. The default settings were fitted to these; the Europa League preset sits halfway between the Champions League fit and a separate fit to 13 Europa League games (matchdays 3-4).</p>
+        <div class="scroll"><table id="cmpTable"></table></div>
+        <p class="mini" id="cmpNote"></p>
+      </details>
+    </section>
+
+    <section class="card">
+      <details class="more">
+        <summary data-show="Show one simulated season" data-hide="Hide one simulated season"></summary>
+        <div style="margin-bottom:8px"><button type="button" id="oneBtn">Simulate another season</button></div>
+        <div class="scroll"><table id="oneTable"></table></div>
+        <p class="mini">Ties on points are broken by wins, then at random, since goals are not modelled. Chips show matchdays 1-8: W win, T draw, L loss. Hover a chip for the opponent.</p>
+      </details>
     </section>
   </main>
 </div>
@@ -204,6 +214,15 @@ const CUT_NAMES = ["8th", "16th", "24th"];
 /* ================================ settings =============================== */
 /* Defaults are fitted to bookmaker odds for 57 league-phase games of 2026-27 (matchdays 1-4). */
 const DEFS = [
+  {g:"Draws", id:"draw", label:"Share of matches drawn", min:2, max:34, step:0.5, v:20.3, fmt:v=>v.toFixed(1)+"%",
+    hint:"Betting odds imply about 20%. Real league phases: 12-24%; this season so far 9.7%."},
+  {g:"Draws", fold:"Draw fade", id:"fade", label:"Draws fade in lopsided matches", min:0, max:0.15, step:0.005, v:0.059, fmt:v=>v.toFixed(3),
+    hint:"Betting odds: about 27% draws between even sides, about 12% when one side is a big favourite."},
+  {g:"Home and away", id:"home", label:"Home advantage", min:0, max:1.5, step:0.05, v:0.60, fmt:v=>v.toFixed(2)},
+  {g:"Home and away", id:"h0", label:"Pot 1 extra home edge", min:-0.5, max:0.5, step:0.05, v:0, fmt:sgn, fold:"Home edge by pot"},
+  {g:"Home and away", id:"h1", label:"Pot 2 extra home edge", min:-0.5, max:0.5, step:0.05, v:0, fmt:sgn, fold:"Home edge by pot"},
+  {g:"Home and away", id:"h2", label:"Pot 3 extra home edge", min:-0.5, max:0.5, step:0.05, v:0, fmt:sgn, fold:"Home edge by pot"},
+  {g:"Home and away", id:"h3", label:"Pot 4 extra home edge", min:-0.5, max:0.5, step:0.05, v:0, fmt:sgn, fold:"Home edge by pot"},
   {g:"Pot strength", fold:"Pot strength", id:"s0", label:"Pot 1 strength", min:0, max:3.5, step:0.05, v:2.32, fmt:v=>v.toFixed(2)},
   {g:"Pot strength", fold:"Pot strength", id:"s1", label:"Pot 2 strength", min:0, max:3.5, step:0.05, v:1.22, fmt:v=>v.toFixed(2)},
   {g:"Pot strength", fold:"Pot strength", id:"s2", label:"Pot 3 strength", min:0, max:3.5, step:0.05, v:0.59, fmt:v=>v.toFixed(2)},
@@ -214,15 +233,6 @@ const DEFS = [
     hint:"The rest of the pot's 9 teams form the weaker group."},
   {g:"Inside each pot", fold:"Inside each pot", id:"teamSd", label:"Random strength of each team", min:0, max:1, step:0.01, v:0.43, fmt:v=>v.toFixed(2),
     hint:"Every team gets its own random strength each season. The betting odds imply teams in a pot differ by about 0.47 in total (this plus the group gap)."},
-  {g:"Home and away", id:"home", label:"Home advantage", min:0, max:1.5, step:0.05, v:0.60, fmt:v=>v.toFixed(2)},
-  {g:"Home and away", id:"h0", label:"Pot 1 extra home edge", min:-0.5, max:0.5, step:0.05, v:0, fmt:sgn, fold:"Home edge by pot"},
-  {g:"Home and away", id:"h1", label:"Pot 2 extra home edge", min:-0.5, max:0.5, step:0.05, v:0, fmt:sgn, fold:"Home edge by pot"},
-  {g:"Home and away", id:"h2", label:"Pot 3 extra home edge", min:-0.5, max:0.5, step:0.05, v:0, fmt:sgn, fold:"Home edge by pot"},
-  {g:"Home and away", id:"h3", label:"Pot 4 extra home edge", min:-0.5, max:0.5, step:0.05, v:0, fmt:sgn, fold:"Home edge by pot"},
-  {g:"Draws", id:"draw", label:"Share of matches drawn", min:2, max:34, step:0.5, v:20.3, fmt:v=>v.toFixed(1)+"%",
-    hint:"Betting odds imply about 20%. Real league phases: 12-24%; this season so far 9.7%."},
-  {g:"Draws", fold:"Draw fade", id:"fade", label:"Draws fade in lopsided matches", min:0, max:0.15, step:0.005, v:0.059, fmt:v=>v.toFixed(3),
-    hint:"Betting odds: about 27% draws between even sides, about 12% when one side is a big favourite."},
   {g:"Randomness between seasons", fold:"Randomness between seasons", id:"sdS", label:"Pot strength wobble", min:0, max:0.4, step:0.01, v:0.10, fmt:v=>v.toFixed(2)},
   {g:"Randomness between seasons", fold:"Randomness between seasons", id:"sdH", label:"Home advantage wobble", min:0, max:0.4, step:0.01, v:0.08, fmt:v=>v.toFixed(2)},
   {g:"Randomness between seasons", fold:"Randomness between seasons", id:"sdT", label:"Draw level wobble", min:0, max:0.05, step:0.005, v:0.01, fmt:v=>v.toFixed(3),
@@ -426,14 +436,6 @@ function stats(vals){
 function renderResults(res,c){
   if(!res)return;
   const {n,counts,cutVals}=res;
-  /* KPIs */
-  $("kpis").innerHTML=CUTS.map((pos,j)=>{
-    const st=stats(cutVals[j]);
-    let best=0;for(let v=0;v<70;v++)if(counts[j][v]>counts[j][best])best=v;
-    return `<div class="kpi"><div class="t"><i class="dot" style="background:${CUT_COLORS[j]}"></i>${CUT_NAMES[j]} place</div>
-      <div class="v">${st.mean.toFixed(1)} pts</div>
-      <div class="s">Most common: ${best} pts (${pct(counts[j][best]/n,0)}) &middot; spread &plusmn;${st.sd.toFixed(2)}</div></div>`;
-  }).join("");
   $("kpiNote").textContent="Average over "+n.toLocaleString("en-US")+" seasons. Draws in the simulated matches: "+pct(res.drawRate)+".";
   /* chart */
   let lo=70,hi=0;
